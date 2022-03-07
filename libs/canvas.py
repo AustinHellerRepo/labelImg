@@ -98,7 +98,7 @@ class Canvas(QWidget):
         self.repaint()
 
     def un_highlight(self, shape=None):
-        if shape == None or shape == self.h_shape:
+        if shape is None or shape == self.h_shape:
             if self.h_shape:
                 self.h_shape.highlight_clear()
             self.h_vertex = self.h_shape = None

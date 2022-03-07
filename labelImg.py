@@ -1118,9 +1118,10 @@ class MainWindow(QMainWindow, WindowMixin):
             self.setWindowTitle(__appname__ + ' ' + file_path + ' ' + counter)
 
             # Default : select last item if there is at least one item
-            if self.label_list.count():
-                self.label_list.setCurrentItem(self.label_list.item(self.label_list.count() - 1))
-                self.label_list.item(self.label_list.count() - 1).setSelected(True)
+            if False:  # TODO create setting for "select last label on file change"
+                if self.label_list.count():
+                    self.label_list.setCurrentItem(self.label_list.item(self.label_list.count() - 1))
+                    self.label_list.item(self.label_list.count() - 1).setSelected(True)
 
             self.canvas.setFocus(True)
             return True
@@ -1229,17 +1230,31 @@ class MainWindow(QMainWindow, WindowMixin):
         if self.may_continue():
             self.load_file(filename)
 
-    def scan_all_images(self, folder_path):
+    def scan_all_images(self, folder_path, sort_criteria, is_ascending):
         extensions = ['.%s' % fmt.data().decode("ascii").lower() for fmt in QImageReader.supportedImageFormats()]
-        images = []
 
+        image_sort_criteria_per_image_path = {}
         for root, dirs, files in os.walk(folder_path):
             for file in files:
                 if file.lower().endswith(tuple(extensions)):
                     relative_path = os.path.join(root, file)
                     path = ustr(os.path.abspath(relative_path))
-                    images.append(path)
-        natural_sort(images, key=lambda x: x.lower())
+
+                    if sort_criteria == "modified datetime":
+                        image_sort_criteria = os.path.getmtime(path)
+                    else:
+                        image_sort_criteria = path.lower()
+                    image_sort_criteria_per_image_path[path] = image_sort_criteria
+
+        if sort_criteria == "modified datetime":
+            images = [k for k, v in sorted(image_sort_criteria_per_image_path.items(), key=lambda item: item[1])]
+        else:
+            # natural_sort(images, key=lambda x: x.lower())
+            images = natural_sort(image_sort_criteria_per_image_path)
+
+        if not is_ascending:
+            images.reverse()
+
         return images
 
     def change_save_dir_dialog(self, _value=False):
@@ -1301,7 +1316,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.dir_name = dir_path
         self.file_path = None
         self.file_list_widget.clear()
-        self.m_img_list = self.scan_all_images(dir_path)
+        self.m_img_list = self.scan_all_images(dir_path, "modified datetime", True)
         self.img_count = len(self.m_img_list)
         self.open_next_image()
         for imgPath in self.m_img_list:
@@ -1483,15 +1498,13 @@ class MainWindow(QMainWindow, WindowMixin):
         return QMessageBox.warning(self, u'Attention', msg, yes | no | cancel)
 
     def error_message(self, title, message):
-        return QMessageBox.critical(self, title,
-                                    '<p><b>%s</b></p>%s' % (title, message))
+        return QMessageBox.critical(self, title, '<p><b>%s</b></p>%s' % (title, message))
 
     def current_path(self):
         return os.path.dirname(self.file_path) if self.file_path else '.'
 
     def choose_color1(self):
-        color = self.color_dialog.getColor(self.line_color, u'Choose line color',
-                                           default=DEFAULT_LINE_COLOR)
+        color = self.color_dialog.getColor(self.line_color, u'Choose line color', default=DEFAULT_LINE_COLOR)
         if color:
             self.line_color = color
             Shape.line_color = color
@@ -1507,16 +1520,14 @@ class MainWindow(QMainWindow, WindowMixin):
                 action.setEnabled(False)
 
     def choose_shape_line_color(self):
-        color = self.color_dialog.getColor(self.line_color, u'Choose Line Color',
-                                           default=DEFAULT_LINE_COLOR)
+        color = self.color_dialog.getColor(self.line_color, u'Choose Line Color', default=DEFAULT_LINE_COLOR)
         if color:
             self.canvas.selected_shape.line_color = color
             self.canvas.update()
             self.set_dirty()
 
     def choose_shape_fill_color(self):
-        color = self.color_dialog.getColor(self.fill_color, u'Choose Fill Color',
-                                           default=DEFAULT_FILL_COLOR)
+        color = self.color_dialog.getColor(self.fill_color, u'Choose Fill Color', default=DEFAULT_FILL_COLOR)
         if color:
             self.canvas.selected_shape.fill_color = color
             self.canvas.update()
